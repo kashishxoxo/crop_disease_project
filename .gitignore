@@ -1,0 +1,22 @@
+.DS_Store
+*.fileloc
+
+# Local environments
+.venv/
+backend/venv/
+backend/.keras/
+backend/__pycache__/
+backend/tests/__pycache__/
+
+# Secrets
+backend/serviceAccountKey.json
+frontend/android/app/google-services.json
+frontend/ios/Runner/GoogleService-Info.plist
+
+# Flutter / iOS generated artifacts
+frontend/.dart_tool/
+frontend/build/
+frontend/ios/Pods/
+
+# Large local-only assets
+dataset/

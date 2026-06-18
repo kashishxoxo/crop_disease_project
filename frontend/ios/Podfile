@@ -1,0 +1,76 @@
+platform :ios, '13.0'
+
+# CocoaPods analytics sends network stats synchronously affecting flutter build latency.
+ENV['COCOAPODS_DISABLE_STATS'] = 'true'
+
+project 'Runner', {
+  'Debug' => :debug,
+  'Profile' => :release,
+  'Release' => :release,
+}
+
+def flutter_root
+  generated_xcode_build_settings_path = File.expand_path(File.join('..', 'Flutter', 'Generated.xcconfig'), __FILE__)
+  unless File.exist?(generated_xcode_build_settings_path)
+    raise "#{generated_xcode_build_settings_path} must exist. If you're running pod install manually, make sure flutter pub get is executed first"
+  end
+
+  File.foreach(generated_xcode_build_settings_path) do |line|
+    matches = line.match(/FLUTTER_ROOT\=(.*)/)
+    return matches[1].strip if matches
+  end
+  raise "FLUTTER_ROOT not found in #{generated_xcode_build_settings_path}. Try deleting Generated.xcconfig, then run flutter pub get"
+end
+
+require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelper'), flutter_root)
+
+flutter_ios_podfile_setup
+
+use_modular_headers!
+
+def ensure_grpc_modulemap_compatibility
+  headers_private = File.join(__dir__, 'Pods', 'Headers', 'Private')
+  grpc_core_headers = File.join(__dir__, 'Pods', 'gRPC-Core', 'include', 'grpc')
+  grpc_compat_headers = File.join(headers_private, 'grpc')
+  grpc_modulemap_source = File.join(__dir__, 'Pods', 'Target Support Files', 'gRPC-Core', 'gRPC-Core.modulemap')
+  grpc_modulemap_target = File.join(grpc_core_headers, 'gRPC-Core.modulemap')
+
+  if Dir.exist?(grpc_core_headers)
+    unless File.exist?(grpc_compat_headers)
+      File.symlink(grpc_core_headers, grpc_compat_headers)
+    end
+
+    unless File.exist?(grpc_modulemap_target)
+      File.symlink(grpc_modulemap_source, grpc_modulemap_target)
+    end
+  end
+end
+
+def sanitize_pods_runner_xcconfigs
+  support_files_dir = File.join(__dir__, 'Pods', 'Target Support Files', 'Pods-Runner')
+  Dir.glob(File.join(support_files_dir, '*.xcconfig')).each do |xcconfig|
+    content = File.read(xcconfig)
+    updated = content.gsub(' -weak_framework "FirebaseFirestoreInternal"', '')
+    next if updated == content
+
+    File.write(xcconfig, updated)
+  end
+end
+
+target 'Runner' do
+  flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+  target 'RunnerTests' do
+    inherit! :search_paths
+  end
+end
+
+post_install do |installer|
+  installer.pods_project.targets.each do |target|
+    flutter_additional_ios_build_settings(target)
+  end
+end
+
+post_integrate do |installer|
+  ensure_grpc_modulemap_compatibility
+  sanitize_pods_runner_xcconfigs
+end
